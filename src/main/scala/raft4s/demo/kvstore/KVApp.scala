@@ -6,7 +6,10 @@ import cats.implicits._
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
 import io.odin._
+import io.odin.formatter.Formatter
+import io.odin.formatter.options.{PositionFormat, ThrowableFormat}
 import org.http4s.server.blaze._
+import raft4s.demo.kvstore.utils.LogFormatter
 import raft4s.rpc.grpc.io.implicits._
 import raft4s.storage.memory.MemoryStorage
 import raft4s.{Address, Configuration, Raft}
@@ -15,8 +18,9 @@ import scala.concurrent.ExecutionContext.global
 import scala.util.Try
 
 object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", version = "0.1") {
-  val logger: Logger[IO] =
-    consoleLogger()
+
+  implicit val logger: Logger[IO] =
+    consoleLogger(formatter = new LogFormatter, minLevel = Level.Trace)
 
   private val httpPort: Opts[Int] =
     Opts.option[Int]("http-port", "Http Port", "p")
