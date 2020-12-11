@@ -9,9 +9,10 @@ import io.odin._
 import org.http4s.server.blaze._
 import raft4s.demo.kvstore.utils.LogFormatter
 import raft4s.rpc.grpc.io.implicits._
-import raft4s.storage.file.FileStateStorage
+import raft4s.storage.file.{FileSnapshotStorage, FileStateStorage}
+import raft4s.storage.memory.MemorySnapshotStorage
 import raft4s.storage.rocksdb.RocksDBLogStorage
-import raft4s.storage.{StateStorage, Storage}
+import raft4s.storage.{SnapshotStorage, StateStorage, Storage}
 import raft4s.{Address, Configuration, Raft}
 
 import java.io.File
@@ -64,9 +65,10 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
     makeStorage(options.storagePath).use { storage =>
       val config = Configuration(options.local, options.servers)
       for {
-        raft   <- Raft.make[IO](config, storage, new KvStateMachine())
-        leader <- raft.start()
-        _      <- logger.info(s"Cluster is started, the leader node is ${leader}")
+        stateMachine <- KvStateMachine.empty
+        raft         <- Raft.make[IO](config, storage, stateMachine)
+        leader       <- raft.start()
+        _            <- logger.info(s"Cluster is started, the leader node is ${leader}")
         _ <- BlazeServerBuilder[IO](global)
           .bindHttp(options.httpPort, "localhost")
           .withHttpApp(http.HttpService.routes(raft))
@@ -79,12 +81,14 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
 
   private def makeStorage(path: Path): Resource[IO, Storage[IO]] =
     for {
-      _            <- Resource.liftF(createDirecytory(path))
-      logStorage   <- RocksDBLogStorage.open[IO](path.resolve("logs"))
-      stateStorage <- Resource.pure[IO, StateStorage[IO]](FileStateStorage.open[IO](path.resolve("state")))
-    } yield Storage(logStorage, stateStorage)
+      _               <- Resource.liftF(createDirectory(path))
+      _               <- Resource.liftF(createDirectory(path.resolve("snapshots")))
+      logStorage      <- RocksDBLogStorage.open[IO](path.resolve("logs"))
+      stateStorage    <- Resource.pure[IO, StateStorage[IO]](FileStateStorage.open[IO](path.resolve("state")))
+      snapshotStorage <- Resource.pure[IO, SnapshotStorage[IO]](FileSnapshotStorage.open[IO](path.resolve("snapshots")))
+    } yield Storage(logStorage, stateStorage, snapshotStorage)
 
-  private def createDirecytory(path: Path): IO[Unit] = IO.fromEither {
+  private def createDirectory(path: Path): IO[Unit] = IO.fromEither {
     Try(Files.createDirectory(path)).toEither match {
       case Right(_)                           => Right(())
       case Left(_) if Files.isDirectory(path) => Right(())
