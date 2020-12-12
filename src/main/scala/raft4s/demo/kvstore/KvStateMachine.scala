@@ -40,7 +40,7 @@ class KvStateMachine(lastIndex: Ref[IO, Long], map: Ref[IO, Map[String, String]]
       items <- map.get
       index <- lastIndex.get
       bytes = serialize(items)
-    } yield Snapshot(index, 0L, bytes)
+    } yield Snapshot(index, bytes)
 
   override def restoreSnapshot(snapshot: Snapshot): IO[Unit] =
     for {
