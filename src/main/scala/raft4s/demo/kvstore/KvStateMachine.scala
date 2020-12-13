@@ -70,7 +70,7 @@ class KvStateMachine(lastIndex: Ref[IO, Long], map: Ref[IO, Map[String, String]]
 object KvStateMachine {
   def empty: IO[KvStateMachine] =
     for {
-      index <- Ref.of[IO, Long](0L)
+      index <- Ref.of[IO, Long](-1L)
       map   <- Ref.of[IO, Map[String, String]](Map.empty)
     } yield new KvStateMachine(index, map)
 }

@@ -10,7 +10,6 @@ import org.http4s.server.blaze._
 import raft4s.demo.kvstore.utils.LogFormatter
 import raft4s.rpc.grpc.io.implicits._
 import raft4s.storage.file.{FileSnapshotStorage, FileStateStorage}
-import raft4s.storage.memory.MemorySnapshotStorage
 import raft4s.storage.rocksdb.RocksDBLogStorage
 import raft4s.storage.{SnapshotStorage, StateStorage, Storage}
 import raft4s.{Address, Configuration, Raft}
@@ -63,7 +62,15 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
 
   override def main: Opts[IO[ExitCode]] = (path, httpPort, local, servers).mapN(AppOptions).map { options =>
     makeStorage(options.storagePath).use { storage =>
-      val config = Configuration(options.local, options.servers)
+      val config = Configuration(
+        local = options.local,
+        members = options.servers,
+        followerAcceptRead = true,
+        electionMinDelayMillis = 0,
+        electionMaxDelayMillis = 2000,
+        heartbeatIntervalMillis = 2000,
+        heartbeatTimeoutMillis = 10000
+      )
       for {
         stateMachine <- KvStateMachine.empty
         raft         <- Raft.make[IO](config, storage, stateMachine)
@@ -85,7 +92,7 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
       _               <- Resource.liftF(createDirectory(path.resolve("snapshots")))
       logStorage      <- RocksDBLogStorage.open[IO](path.resolve("logs"))
       stateStorage    <- Resource.pure[IO, StateStorage[IO]](FileStateStorage.open[IO](path.resolve("state")))
-      snapshotStorage <- Resource.pure[IO, SnapshotStorage[IO]](FileSnapshotStorage.open[IO](path.resolve("snapshots")))
+      snapshotStorage <- Resource.liftF(FileSnapshotStorage.open[IO](path.resolve("snapshots")))
     } yield Storage(logStorage, stateStorage, snapshotStorage)
 
   private def createDirectory(path: Path): IO[Unit] = IO.fromEither {
