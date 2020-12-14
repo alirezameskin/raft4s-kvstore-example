@@ -9,10 +9,10 @@ import io.odin._
 import org.http4s.server.blaze._
 import raft4s.demo.kvstore.utils.LogFormatter
 import raft4s.rpc.grpc.io.implicits._
-import raft4s.storage.file.{FileSnapshotStorage, FileStateStorage}
+import raft4s.storage.file.{FileSnapshotStorage, _}
 import raft4s.storage.rocksdb.RocksDBLogStorage
 import raft4s.storage.{SnapshotStorage, StateStorage, Storage}
-import raft4s.{Address, Configuration, Raft}
+import raft4s.{Address, Configuration, Raft, RaftCluster}
 
 import java.io.File
 import java.nio.file.{Files, Path}
@@ -61,30 +61,35 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
       .orEmpty
 
   override def main: Opts[IO[ExitCode]] = (path, httpPort, local, servers).mapN(AppOptions).map { options =>
-    makeStorage(options.storagePath).use { storage =>
-      val config = Configuration(
-        local = options.local,
-        members = options.servers,
-        followerAcceptRead = true,
-        electionMinDelayMillis = 0,
-        electionMaxDelayMillis = 2000,
-        heartbeatIntervalMillis = 2000,
-        heartbeatTimeoutMillis = 10000
-      )
+    val config = Configuration(
+      local = options.local,
+      members = options.servers,
+      followerAcceptRead = true,
+      electionMinDelayMillis = 0,
+      electionMaxDelayMillis = 2000,
+      heartbeatIntervalMillis = 2000,
+      heartbeatTimeoutMillis = 10000
+    )
+    makeCluster(options.storagePath, config).use { cluster =>
       for {
-        stateMachine <- KvStateMachine.empty
-        raft         <- Raft.make[IO](config, storage, stateMachine)
-        leader       <- raft.start()
-        _            <- logger.info(s"Cluster is started, the leader node is ${leader}")
+        leader <- cluster.start
+        _      <- logger.info(s"Cluster is started, the leader node is ${leader}")
         _ <- BlazeServerBuilder[IO](global)
           .bindHttp(options.httpPort, "localhost")
-          .withHttpApp(http.HttpService.routes(raft))
+          .withHttpApp(http.HttpService.routes(cluster))
           .serve
           .compile
           .drain
       } yield ExitCode.Success
     }
   }
+
+  private def makeCluster(storagePath: Path, config: Configuration): Resource[IO, RaftCluster[IO]] =
+    for {
+      storage      <- makeStorage(storagePath)
+      stateMachine <- Resource.liftF(KvStateMachine.empty)
+      cluster      <- RaftCluster.resource[IO](config, storage, stateMachine)
+    } yield cluster
 
   private def makeStorage(path: Path): Resource[IO, Storage[IO]] =
     for {
