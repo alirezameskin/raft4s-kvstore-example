@@ -24,54 +24,8 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
   implicit val logger: Logger[IO] =
     consoleLogger(formatter = new LogFormatter, minLevel = Level.Trace)
 
-  private val path: Opts[Path] =
-    Opts
-      .option[String]("storage", "Storage path", "s")
-      .mapValidated { path =>
-        Try(new File(path)) match {
-          case Failure(exception)                                => Validated.invalidNel(exception.getMessage)
-          case Success(file) if file.exists && !file.isDirectory => Validated.invalidNel(s"$path Does not exist")
-          case Success(file)                                     => Validated.valid(file.toPath)
-        }
-      }
-
-  private val httpPort: Opts[Int] =
-    Opts.option[Int]("http-port", "Http Port", "p")
-
-  private val local: Opts[Address] = Opts
-    .option[String]("local", "Local server", "l", metavar = "host:port")
-    .mapValidated { string =>
-      string.split(":", 2) match {
-        case Array(s1, s2) if Try(s2.toInt).isSuccess => Validated.valid(Address(s1, s2.toInt))
-        case _                                        => Validated.invalidNel(s"Invalid host:port : ${string}")
-      }
-    }
-
-  private val servers: Opts[List[Address]] =
-    Opts
-      .options[String]("member", "another member", short = "m", metavar = "host:port")
-      .mapValidated { strings =>
-        strings.traverse { string =>
-          string.split(":", 2) match {
-            case Array(s1, s2) if Try(s2.toInt).isSuccess => Validated.valid(Address(s1, s2.toInt))
-            case _                                        => Validated.invalidNel(s"Invalid host:port : ${string}")
-          }
-        }
-      }
-      .orEmpty
-
-  override def main: Opts[IO[ExitCode]] = (path, httpPort, local, servers).mapN(AppOptions).map { options =>
-    val config = Configuration(
-      local = options.local,
-      members = options.servers,
-      followerAcceptRead = true,
-      logCompactionThreshold = 10,
-      electionMinDelayMillis = 0,
-      electionMaxDelayMillis = 2000,
-      heartbeatIntervalMillis = 2000,
-      heartbeatTimeoutMillis = 10000
-    )
-    makeCluster(options.storagePath, config).use { cluster =>
+  override def main: Opts[IO[ExitCode]] = AppOptions.opts.map { options =>
+    makeCluster(options.storagePath, configuration(options)).use { cluster =>
       for {
         leader <- cluster.start
         _      <- logger.info(s"Cluster is started, the leader node is ${leader}")
@@ -108,4 +62,16 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
       case Left(error)                        => Left(error)
     }
   }
+
+  private def configuration(options: AppOptions): Configuration =
+    Configuration(
+      local = options.local,
+      members = options.servers,
+      followerAcceptRead = true,
+      logCompactionThreshold = 10,
+      electionMinDelayMillis = 0,
+      electionMaxDelayMillis = 2000,
+      heartbeatIntervalMillis = 2000,
+      heartbeatTimeoutMillis = 10000
+    )
 }
