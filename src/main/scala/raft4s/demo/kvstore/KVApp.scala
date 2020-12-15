@@ -9,10 +9,10 @@ import io.odin._
 import org.http4s.server.blaze._
 import raft4s.demo.kvstore.utils.LogFormatter
 import raft4s.rpc.grpc.io.implicits._
-import raft4s.storage.file.{FileSnapshotStorage, _}
+import raft4s.storage.file.{FileSnapshotStorage, FileStateStorage}
 import raft4s.storage.rocksdb.RocksDBLogStorage
-import raft4s.storage.{SnapshotStorage, StateStorage, Storage}
-import raft4s.{Address, Configuration, Raft, RaftCluster}
+import raft4s.storage.{StateStorage, Storage}
+import raft4s.{Address, Configuration, RaftCluster}
 
 import java.io.File
 import java.nio.file.{Files, Path}
@@ -65,6 +65,7 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
       local = options.local,
       members = options.servers,
       followerAcceptRead = true,
+      logCompactionThreshold = 10,
       electionMinDelayMillis = 0,
       electionMaxDelayMillis = 2000,
       heartbeatIntervalMillis = 2000,
