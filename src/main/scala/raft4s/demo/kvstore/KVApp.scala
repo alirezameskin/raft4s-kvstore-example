@@ -1,23 +1,24 @@
 package raft4s.demo.kvstore
 
-import cats.data.Validated
 import cats.effect.{ExitCode, IO, Resource}
 import cats.implicits._
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
 import io.odin._
 import org.http4s.server.blaze._
+import raft4s.Node
 import raft4s.demo.kvstore.utils.LogFormatter
 import raft4s.rpc.grpc.io.implicits._
 import raft4s.storage.file.{FileSnapshotStorage, FileStateStorage}
 import raft4s.storage.rocksdb.RocksDBLogStorage
 import raft4s.storage.{StateStorage, Storage}
-import raft4s.{Address, Configuration, RaftCluster}
+import raft4s.{Configuration, RaftCluster}
 
-import java.io.File
 import java.nio.file.{Files, Path}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.global
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", version = "0.1") {
 
@@ -27,8 +28,8 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
   override def main: Opts[IO[ExitCode]] = AppOptions.opts.map { options =>
     makeCluster(options.storagePath, configuration(options)).use { cluster =>
       for {
-        leader <- cluster.start
-        _      <- logger.info(s"Cluster is started, the leader node is ${leader}")
+        leader <- if (options.join.isEmpty) cluster.start else cluster.join(options.join.get)
+        _      <- logger.info(s"Cluster is started, the leader node is ${leader} ${options.local}")
         _ <- BlazeServerBuilder[IO](global)
           .bindHttp(options.httpPort, "localhost")
           .withHttpApp(http.HttpService.routes(cluster))
@@ -38,6 +39,9 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
       } yield ExitCode.Success
     }
   }
+
+  private def leaveCluster(cluster: RaftCluster[IO]): IO[Unit] =
+    IO.sleep(FiniteDuration(25, TimeUnit.SECONDS)) *> IO(println("Start leaving")) *> cluster.leave() *> IO.delay(sys.exit())
 
   private def makeCluster(storagePath: Path, config: Configuration): Resource[IO, RaftCluster[IO]] =
     for {

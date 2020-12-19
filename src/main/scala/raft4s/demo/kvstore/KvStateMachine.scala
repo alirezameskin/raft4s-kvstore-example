@@ -8,6 +8,8 @@ import raft4s.demo.kvstore.utils.ObjectSerializer
 import raft4s.protocol.{ReadCommand, WriteCommand}
 import raft4s.storage.Snapshot
 
+import java.nio.ByteBuffer
+
 class KvStateMachine(lastIndex: Ref[IO, Long], map: Ref[IO, Map[String, String]]) extends StateMachine[IO] {
 
   override def applyWrite: PartialFunction[(Long, WriteCommand[_]), IO[Any]] = {
@@ -33,17 +35,17 @@ class KvStateMachine(lastIndex: Ref[IO, Long], map: Ref[IO, Map[String, String]]
 
   override def appliedIndex: IO[Long] = lastIndex.get
 
-  override def takeSnapshot(): IO[Snapshot] =
+  override def takeSnapshot(): IO[(Long, ByteBuffer)] =
     for {
       items <- map.get
       index <- lastIndex.get
       bytes = ObjectSerializer.serialize(items)
-    } yield Snapshot(index, bytes)
+    } yield (index, bytes)
 
-  override def restoreSnapshot(snapshot: Snapshot): IO[Unit] =
+  override def restoreSnapshot(index: Long, bytes: ByteBuffer): IO[Unit] =
     for {
-      _ <- map.set(ObjectSerializer.deserialize(snapshot.bytes))
-      _ <- lastIndex.set(snapshot.lastIndex)
+      _ <- map.set(ObjectSerializer.deserialize(bytes))
+      _ <- lastIndex.set(index)
     } yield ()
 
 }
@@ -51,7 +53,7 @@ class KvStateMachine(lastIndex: Ref[IO, Long], map: Ref[IO, Map[String, String]]
 object KvStateMachine {
   def empty: IO[KvStateMachine] =
     for {
-      index <- Ref.of[IO, Long](-1L)
+      index <- Ref.of[IO, Long](0L)
       map   <- Ref.of[IO, Map[String, String]](Map.empty)
     } yield new KvStateMachine(index, map)
 }
