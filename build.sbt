@@ -11,7 +11,7 @@ libraryDependencies ++= Seq(
   "com.monovore"             %% "decline"             % "1.3.0",
   "com.monovore"             %% "decline-effect"      % "1.3.0",
   "dev.profunktor"           %% "console4cats"        % "0.8.1",
-  "com.github.alirezameskin" %% "raft4s-core"         % "0.0.3",
+  "com.github.alirezameskin" %% "raft4s-effect"       % "0.0.3",
   "com.github.alirezameskin" %% "raft4s-grpc"         % "0.0.3",
   "com.github.alirezameskin" %% "raft4s-rocksdb"      % "0.0.3",
   "com.github.valskalla"     %% "odin-core"           % "0.8.1",

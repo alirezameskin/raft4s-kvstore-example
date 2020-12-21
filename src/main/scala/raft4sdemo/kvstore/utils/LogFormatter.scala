@@ -1,4 +1,4 @@
-package raft4s.demo.kvstore.utils
+package raft4sdemo.kvstore.utils
 
 import io.odin.LoggerMessage
 import io.odin.formatter.Formatter

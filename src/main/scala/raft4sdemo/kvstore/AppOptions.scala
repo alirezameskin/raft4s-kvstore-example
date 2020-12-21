@@ -1,4 +1,4 @@
-package raft4s.demo.kvstore
+package raft4sdemo.kvstore
 
 import cats.data.Validated
 import cats.implicits._

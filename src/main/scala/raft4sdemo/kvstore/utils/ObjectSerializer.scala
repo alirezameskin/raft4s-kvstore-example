@@ -1,4 +1,4 @@
-package raft4s.demo.kvstore.utils
+package raft4sdemo.kvstore.utils
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 import java.nio.ByteBuffer

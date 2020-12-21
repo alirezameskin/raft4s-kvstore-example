@@ -1,23 +1,23 @@
-package raft4s.demo.kvstore
+package raft4sdemo.kvstore
 
-import cats.effect.{ExitCode, IO, Resource}
-import cats.implicits._
+import cats.effect.{Clock, ExitCode, IO, Resource, Sync, Timer}
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
 import io.odin._
+import io.odin.loggers.ConsoleLogger
 import org.http4s.server.blaze._
-import raft4s.Node
-import raft4s.demo.kvstore.utils.LogFormatter
-import raft4s.rpc.grpc.io.implicits._
-import raft4s.storage.file.{FileSnapshotStorage, FileStateStorage}
-import raft4s.storage.rocksdb.RocksDBLogStorage
-import raft4s.storage.{StateStorage, Storage}
-import raft4s.{Configuration, RaftCluster}
+import raft4s.{Configuration, Storage}
+import raft4s.effect.RaftCluster
+import raft4s.effect.storage.file.{FileSnapshotStorage, FileStateStorage}
+import raft4s.effect.rpc.grpc.io.implicits._
+import raft4s.effect.storage.rocksdb.RocksDBLogStorage
+import raft4sdemo.kvstore.utils.LogFormatter
 
 import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.global
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Future
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS}
 import scala.util.Try
 
 object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", version = "0.1") {
@@ -41,7 +41,7 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
   }
 
   private def leaveCluster(cluster: RaftCluster[IO]): IO[Unit] =
-    IO.sleep(FiniteDuration(25, TimeUnit.SECONDS)) *> IO(println("Start leaving")) *> cluster.leave() *> IO.delay(sys.exit())
+    IO.sleep(FiniteDuration(25, TimeUnit.SECONDS)) *> IO(println("Start leaving")) *> cluster.leave *> IO.delay(sys.exit())
 
   private def makeCluster(storagePath: Path, config: Configuration): Resource[IO, RaftCluster[IO]] =
     for {
@@ -55,7 +55,7 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
       _               <- Resource.liftF(createDirectory(path))
       _               <- Resource.liftF(createDirectory(path.resolve("snapshots")))
       logStorage      <- RocksDBLogStorage.open[IO](path.resolve("logs"))
-      stateStorage    <- Resource.pure[IO, StateStorage[IO]](FileStateStorage.open[IO](path.resolve("state")))
+      stateStorage    <- Resource.pure[IO, FileStateStorage[IO]](FileStateStorage.open[IO](path.resolve("state")))
       snapshotStorage <- Resource.liftF(FileSnapshotStorage.open[IO](path.resolve("snapshots")))
     } yield Storage(logStorage, stateStorage, snapshotStorage)
 

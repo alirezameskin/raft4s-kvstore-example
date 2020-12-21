@@ -1,4 +1,4 @@
-package raft4s.demo.kvstore.command
+package raft4sdemo.kvstore.command
 
 import raft4s.protocol.ReadCommand
 

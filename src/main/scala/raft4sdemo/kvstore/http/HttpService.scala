@@ -1,11 +1,11 @@
-package raft4s.demo.kvstore.http
+package raft4sdemo.kvstore.http
 
 import cats.effect.IO
 import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.implicits._
-import raft4s.{Raft, RaftCluster}
-import raft4s.demo.kvstore.command.{DeleteCommand, GetCommand, SetCommand}
+import raft4s.effect.RaftCluster
+import raft4sdemo.kvstore.command.{DeleteCommand, GetCommand, SetCommand}
 
 object HttpService {
   def routes(raft: RaftCluster[IO]) =
