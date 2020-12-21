@@ -3,12 +3,12 @@ package raft4sdemo.kvstore
 import cats.effect.{ExitCode, IO, Resource}
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
-import io.odin.{consoleLogger, Level}
+import io.odin.{Level, consoleLogger}
 import org.http4s.server.blaze._
-import raft4s.{Configuration, Storage, Logger}
-import raft4s.effect.RaftCluster
+import raft4s.{Cluster, Configuration, Storage}
 import raft4s.effect.storage.file.{FileSnapshotStorage, FileStateStorage}
 import raft4s.effect._
+import raft4s.effect.RaftCluster
 import raft4s.effect.rpc.grpc.io.implicits._
 import raft4s.effect.storage.rocksdb.RocksDBLogStorage
 import raft4sdemo.kvstore.utils.LogFormatter
@@ -21,7 +21,7 @@ import scala.util.Try
 
 object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", version = "0.1") {
 
-  implicit val logger: Logger[IO] =
+  implicit val logger =
     odinLogger(consoleLogger[IO](formatter = new LogFormatter, minLevel = Level.Trace))
 
   override def main: Opts[IO[ExitCode]] = AppOptions.opts.map { options =>
@@ -39,10 +39,10 @@ object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", 
     }
   }
 
-  private def leaveCluster(cluster: RaftCluster[IO]): IO[Unit] =
+  private def leaveCluster(cluster: Cluster[IO]): IO[Unit] =
     IO.sleep(FiniteDuration(25, TimeUnit.SECONDS)) *> IO(println("Start leaving")) *> cluster.leave *> IO.delay(sys.exit())
 
-  private def makeCluster(storagePath: Path, config: Configuration): Resource[IO, RaftCluster[IO]] =
+  private def makeCluster(storagePath: Path, config: Configuration): Resource[IO, Cluster[IO]] =
     for {
       storage      <- makeStorage(storagePath)
       stateMachine <- Resource.liftF(KvStateMachine.empty)
