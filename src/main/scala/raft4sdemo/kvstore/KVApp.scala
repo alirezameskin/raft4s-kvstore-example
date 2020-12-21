@@ -1,14 +1,14 @@
 package raft4sdemo.kvstore
 
-import cats.effect.{Clock, ExitCode, IO, Resource, Sync, Timer}
+import cats.effect.{ExitCode, IO, Resource}
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
-import io.odin._
-import io.odin.loggers.ConsoleLogger
+import io.odin.{consoleLogger, Level}
 import org.http4s.server.blaze._
-import raft4s.{Configuration, Storage}
+import raft4s.{Configuration, Storage, Logger}
 import raft4s.effect.RaftCluster
 import raft4s.effect.storage.file.{FileSnapshotStorage, FileStateStorage}
+import raft4s.effect._
 import raft4s.effect.rpc.grpc.io.implicits._
 import raft4s.effect.storage.rocksdb.RocksDBLogStorage
 import raft4sdemo.kvstore.utils.LogFormatter
@@ -16,14 +16,13 @@ import raft4sdemo.kvstore.utils.LogFormatter
 import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.global
-import scala.concurrent.Future
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS}
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 object KVApp extends CommandIOApp(name = "KVStore", header = "Simple KV store", version = "0.1") {
 
   implicit val logger: Logger[IO] =
-    consoleLogger(formatter = new LogFormatter, minLevel = Level.Trace)
+    odinLogger(consoleLogger[IO](formatter = new LogFormatter, minLevel = Level.Trace))
 
   override def main: Opts[IO[ExitCode]] = AppOptions.opts.map { options =>
     makeCluster(options.storagePath, configuration(options)).use { cluster =>
