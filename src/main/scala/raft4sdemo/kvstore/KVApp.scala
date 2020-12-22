@@ -3,16 +3,15 @@ package raft4sdemo.kvstore
 import cats.effect.{ExitCode, IO, Resource}
 import com.monovore.decline.Opts
 import com.monovore.decline.effect.CommandIOApp
-import io.odin.{Level, consoleLogger}
+import io.odin.{consoleLogger, Level}
 import org.http4s.server.blaze._
 import raft4s.{Cluster, Configuration, Storage}
 import raft4s.effect.storage.file.{FileSnapshotStorage, FileStateStorage}
-import raft4s.effect._
-import raft4s.effect.RaftCluster
+import raft4s.effect.{RaftCluster, odinLogger}
 import raft4s.effect.rpc.grpc.io.implicits._
 import raft4s.effect.storage.rocksdb.RocksDBLogStorage
+import raft4s.storage.serialization.default._
 import raft4sdemo.kvstore.utils.LogFormatter
-
 import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext.global

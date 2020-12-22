@@ -5,7 +5,7 @@ import org.http4s.HttpRoutes
 import org.http4s.dsl.io._
 import org.http4s.implicits._
 import raft4s.Cluster
-import raft4sdemo.kvstore.command.{DeleteCommand, GetCommand, SetCommand}
+import raft4sdemo.kvstore.{DeleteCommand, GetCommand, SetCommand}
 
 object HttpService {
   def routes(raft: Cluster[IO]) =

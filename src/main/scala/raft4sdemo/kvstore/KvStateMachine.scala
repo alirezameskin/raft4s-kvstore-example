@@ -2,9 +2,7 @@ package raft4sdemo.kvstore
 
 import cats.effect.IO
 import cats.effect.concurrent.Ref
-import raft4s.StateMachine
-import raft4s.protocol.{ReadCommand, WriteCommand}
-import raft4sdemo.kvstore.command.{DeleteCommand, GetCommand, SetCommand}
+import raft4s.{ReadCommand, StateMachine, WriteCommand}
 import raft4sdemo.kvstore.utils.ObjectSerializer
 
 import java.nio.ByteBuffer
